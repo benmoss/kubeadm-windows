@@ -1,0 +1,58 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-windows
+  labels:
+    app: nginx-windows
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-windows
+  template:
+    metadata:
+      labels:
+        app: nginx-windows
+    spec:
+      hostNetwork: true
+      initContainers:
+      - name: install
+        image: gcr.io/cf-london-servces-k8s/windows-images/nginx:latest
+        command:
+        - powershell
+        args:
+        - -command
+        - cp -force -recurse /nginx /host/nginx
+        volumeMounts:
+        - name: host
+          mountPath: /host
+      containers:
+      - name: windowswebserver
+        image: gcr.io/cf-london-servces-k8s/windows-images/nginx:latest
+        command:
+        - powershell
+        args:
+        - -command
+        - wins cli process run --path C:\nginx\nginx.exe --dir C:\nginx\ --exposes TCP:80
+        volumeMounts:
+        - name: wins
+          mountPath: \\.\pipe\rancher_wins
+      nodeSelector:
+        kubernetes.io/os: windows
+      tolerations:
+      - key: "windows"
+        operator: "Equal"
+        value: "2019"
+        effect: "NoSchedule"
+      - key: "node.kubernetes.io/not-ready"
+        operator: "Exists"
+        effect: "NoSchedule"
+      volumes:
+      - name: host
+        hostPath:
+          path: /
+      - name: wins
+        hostPath:
+          path: \\.\pipe\rancher_wins
+          type: null
