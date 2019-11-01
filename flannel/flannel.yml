@@ -1,0 +1,153 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: kube-flannel-cfg
+  labels:
+    tier: node
+    app: flannel
+data:
+  # need to fix 10.74.47.0/24 -- hardcoded to host ip cidr
+  # buncha other stuff hardcoded
+  cni-conf.json: |
+    {
+      "name": "cbr0",
+      "plugins": [
+        {
+          "type": "flannel",
+          "delegate": {
+            "hairpinMode": true,
+            "isDefaultGateway": true,
+            "type": "win-bridge",
+            "dns": {
+              "nameservers": ["10.100.200.10"],
+              "search": ["svc.cluster.local"]
+            },
+            "policies": [
+              {
+                "Name": "EndpointPolicy",
+                "Value": {
+                  "Type": "OutBoundNAT",
+                  "ExceptionList": [
+                    "10.244.0.0/16",
+                    "10.100.200.0/24",
+                    "10.74.47.0/24"
+                  ]
+                }
+              },
+              {
+                "Name": "EndpointPolicy",
+                "Value": {
+                  "Type": "ROUTE",
+                  "DestinationPrefix": "10.100.200.0/24",
+                  "NeedEncap": true
+                }
+              },
+              {
+                "Name": "EndpointPolicy",
+                "Value": {
+                  "Type": "ROUTE",
+                  "DestinationPrefix": "10.74.47.137/32",
+                  "NeedEncap": true
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kube-flannel-ds-windows-amd64
+  labels:
+    tier: node
+    app: flannel
+spec:
+  selector:
+    matchLabels:
+      app: flannel
+  template:
+    metadata:
+      labels:
+        tier: node
+        app: flannel
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: beta.kubernetes.io/os
+                    operator: In
+                    values:
+                      - windows
+                  - key: beta.kubernetes.io/arch
+                    operator: In
+                    values:
+                      - amd64
+      hostNetwork: true
+      tolerations:
+      - operator: Exists
+        effect: NoSchedule
+      initContainers:
+      - name: install-cni
+        image: gcr.io/cf-london-servces-k8s/windows-images/flannel:latest
+        command:
+        - powershell
+        args:
+        - -command
+        - mkdir -force /etc/cni/net.d; cp -force -recurse /etc/kube-flannel/cni-conf.json /etc/cni/net.d/10-flannel.conflist
+        volumeMounts:
+        - name: cni
+          mountPath: /etc/cni/net.d
+        - name: flannel-cfg
+          mountPath: /etc/kube-flannel/
+      - name: install-flannel
+        image: gcr.io/cf-london-servces-k8s/windows-images/flannel:latest
+        command:
+        - powershell
+        args:
+        - -command
+        - cp -force -recurse /flannel /host/flannel
+        volumeMounts:
+        - name: host
+          mountPath: /host
+      - name: install-cni-binaries
+        image: gcr.io/cf-london-servces-k8s/windows-images/flannel:latest
+        command:
+        - powershell
+        args:
+        - -command
+        - mkdir -force /host/opt/cni/bin; cp -force -recurse /cni/* /host/opt/cni/bin
+        volumeMounts:
+        - name: host
+          mountPath: /host
+      containers:
+      - name: kube-flannel
+        image: gcr.io/cf-london-servces-k8s/windows-images/flannel:latest
+        command:
+        - powershell
+        args:
+        - -command
+        - wins cli process run --path C:\flannel\flanneld.exe --args --kube-subnet-mgr
+        volumeMounts:
+        - name: wins
+          mountPath: \\.\pipe\rancher_wins
+      volumes:
+        - name: opt
+          hostPath:
+            path: /opt
+        - name: host
+          hostPath:
+            path: /
+        - name: cni
+          hostPath:
+            path: /etc
+        - name: flannel-cfg
+          configMap:
+            name: kube-flannel-cfg
+        - name: wins
+          hostPath:
+            path: \\.\pipe\rancher_wins
+            type: null
