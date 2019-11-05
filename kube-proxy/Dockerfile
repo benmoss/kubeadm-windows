@@ -3,9 +3,7 @@ SHELL ["powershell", "-NoLogo", "-Command", "$ErrorActionPreference = 'Stop'; $P
 
 RUN mkdir C:\kube-proxy; \
   pushd C:\kube-proxy; \
-  curl.exe -Lo kubernetes.tgz https://dl.k8s.io/v1.16.2/kubernetes-node-windows-amd64.tar.gz; \
-  tar --strip 3 -xf .\kubernetes.tgz kubernetes/node/bin/kube-proxy.exe; \
-  rm kubernetes.tgz
+  curl.exe -LO https://dl.k8s.io/v1.16.2/bin/windows/amd64/kube-proxy.exe
 
 RUN curl.exe -Lo C:\windows\wins.exe https://github.com/rancher/wins/releases/download/v0.0.4/wins.exe
 
