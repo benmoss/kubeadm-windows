@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    k8s-app: kube-proxy
+  name: kube-proxy
+spec:
+  selector:
+    matchLabels:
+      k8s-app: kube-proxy
+  template:
+    metadata:
+      labels:
+        k8s-app: kube-proxy
+    spec:
+      priorityClassName: system-node-critical
+      initContainers:
+      - name: install-kube-proxy
+        image: gcr.io/cf-london-servces-k8s/windows-images/kube-proxy:latest
+        command:
+        - powershell
+        args:
+        - -command
+        - mkdir -force /host/kube-proxy; cp -Force -Recurse /var/lib/kube-proxy /host/kube-proxy/config; cp /kube-proxy/kube-proxy.exe /host/kube-proxy
+        volumeMounts:
+        - name: host
+          mountPath: /host
+        - mountPath: /var/lib/kube-proxy
+          name: kube-proxy
+      containers:
+      - command:
+        - powershell
+        args:
+        - -command
+        - wins cli process run --path /kube-proxy/kube-proxy.exe
+        - --config=/kube-proxy/config/config.conf
+        - --hostname-override=$(NODE_NAME)
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        image: gcr.io/cf-london-servces-k8s/windows-images/kube-proxy:latest
+        name: kube-proxy
+      hostNetwork: true
+      nodeSelector:
+        beta.kubernetes.io/os: windows
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - operator: Exists
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: kube-proxy
+        name: kube-proxy
+      - hostPath:
+          path: /
+        name: host
+      - name: wins
+        hostPath:
+          path: \\.\pipe\rancher_wins
+          type: null
+  updateStrategy:
+    type: RollingUpdate
