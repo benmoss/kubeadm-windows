@@ -48,7 +48,7 @@ data:
     clusters:
     - cluster:
         certificate-authority: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-        server: https://10.74.47.135:8443
+        server: https://172.17.0.2:6443
       name: default
     contexts:
     - context:
@@ -74,7 +74,7 @@ kind: DaemonSet
 metadata:
   labels:
     k8s-app: kube-proxy
-  name: kube-proxy
+  name: kube-proxy-windows
   namespace: kube-system
 spec:
   selector:
@@ -93,18 +93,19 @@ spec:
         - powershell
         args:
         - -command
-        - mkdir -force /host/kube-proxy; cp -force /kube-proxy/* /host/kube-proxy; mkdir -force /host/var/lib/kube-proxy; cp -force /var/lib/kube-proxy/* /host/var/lib/kube-proxy; mkdir -force /host/var/lib/kube-proxy/var/run/secrets/kubernetes.io/serviceaccount; cp -force /var/run/secrets/kubernetes.io/serviceaccount/* /host/var/lib/kube-proxy/var/run/secrets/kubernetes.io/serviceaccount
+        - mkdir -force /host/var/lib/kube-proxy; cp -force /var/lib/kube-proxy/* /host/var/lib/kube-proxy; mkdir -force /host/var/lib/kube-proxy/var/run/secrets/kubernetes.io/serviceaccount; cp -force /var/run/secrets/kubernetes.io/serviceaccount/* /host/var/lib/kube-proxy/var/run/secrets/kubernetes.io/serviceaccount
         volumeMounts:
         - name: host
           mountPath: /host
         - mountPath: /var/lib/kube-proxy
           name: kube-proxy
+      serviceAccountName: kube-proxy
       containers:
       - command:
         - powershell
         args:
         - -command
-        - wins cli process run --path /kube-proxy/kube-proxy.exe --args --config=/var/lib/kube-proxy/config.conf --args --hostname-override=$(NODE_NAME)
+        - cat /host/var/lib/kube-proxy/config.conf; mkdir -force /host/kube-proxy; cp -force /kube-proxy/* /host/kube-proxy; wins cli process run --path /kube-proxy/kube-proxy.exe --args "--v=6 --config=/var/lib/kube-proxy/config.conf --hostname-override=$(NODE_NAME)"
         env:
         - name: NODE_NAME
           valueFrom:
@@ -114,6 +115,8 @@ spec:
         image: gcr.io/cf-london-servces-k8s/windows-images/kube-proxy:latest
         name: kube-proxy
         volumeMounts:
+        - name: host
+          mountPath: /host
         - name: wins
           mountPath: \\.\pipe\rancher_wins
       hostNetwork: true
