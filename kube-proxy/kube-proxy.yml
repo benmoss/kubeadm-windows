@@ -17,6 +17,8 @@ data:
       tcpCloseWaitTimeout: 1h0m0s
       tcpEstablishedTimeout: 24h0m0s
     enableProfiling: false
+    featureGates:
+      WinOverlay: true
     healthzBindAddress: 0.0.0.0:10256
     hostnameOverride: ""
     iptables:
@@ -41,7 +43,7 @@ data:
     winkernel:
       enableDSR: false
       networkName: ""
-      sourceVip: ""
+      sourceVip: "10.244.1.25" # FIXME
   kubeconfig.conf: |-
     apiVersion: v1
     kind: Config
@@ -79,11 +81,11 @@ metadata:
 spec:
   selector:
     matchLabels:
-      k8s-app: kube-proxy
+      k8s-app: kube-proxy-windows
   template:
     metadata:
       labels:
-        k8s-app: kube-proxy
+        k8s-app: kube-proxy-windows
     spec:
       priorityClassName: system-node-critical
       initContainers:
@@ -105,13 +107,15 @@ spec:
         - powershell
         args:
         - -command
-        - cat /host/var/lib/kube-proxy/config.conf; mkdir -force /host/kube-proxy; cp -force /kube-proxy/* /host/kube-proxy; wins cli process run --path /kube-proxy/kube-proxy.exe --args "--v=6 --config=/var/lib/kube-proxy/config.conf --hostname-override=$(NODE_NAME)"
+        - mkdir -force /host/kube-proxy; cp -force /kube-proxy/* /host/kube-proxy; wins cli process run --path /kube-proxy/kube-proxy.exe --args "--v=6 --config=/var/lib/kube-proxy/config.conf --hostname-override=$(NODE_NAME) --feature-gates=WinOverlay=true" --envs "KUBE_NETWORK=$env:KUBE_NETWORK"
         env:
         - name: NODE_NAME
           valueFrom:
             fieldRef:
               apiVersion: v1
               fieldPath: spec.nodeName
+        - name: KUBE_NETWORK
+          value: flannel.4096 #FIXME
         image: gcr.io/cf-london-servces-k8s/windows-images/kube-proxy:latest
         name: kube-proxy
         volumeMounts:

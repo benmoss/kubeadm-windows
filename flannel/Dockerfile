@@ -1,9 +1,8 @@
 FROM mcr.microsoft.com/windows/servercore:ltsc2019
 SHELL ["powershell", "-NoLogo", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-RUN mkdir C:\flannel; \
-  pushd C:\flannel; \
-  curl.exe -LO https://github.com/coreos/flannel/releases/download/v0.11.0/flanneld.exe
+RUN mkdir C:\flannel
+ADD flanneld.exe /flannel/flanneld.exe
 
 RUN mkdir C:\cni; \
   pushd C:\cni; \
