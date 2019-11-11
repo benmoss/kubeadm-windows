@@ -7,6 +7,8 @@ metadata:
     app: flannel
 data:
   run.ps1: |
+    $ErrorActionPreference = "Stop";
+
     mkdir -force /host/etc/cni/net.d
     mkdir -force /host/etc/kube-flannel
     mkdir -force /host/opt/cni/bin
@@ -21,7 +23,7 @@ data:
     $cniJson.delegate.policies[0].Value.ExceptionList = $serviceSubnet, $podSubnet, $networkJson.SubnetCIDR
     $cniJson.delegate.policies[1].Value.DestinationPrefix = $serviceSubnet
     $cniJson.delegate.policies[2].Value.DestinationPrefix = $networkJson.AddressCIDR
-    Add-Content -Path /host/etc/cni/net.d/10-flannel.conf ($cniJson | ConvertTo-Json -depth 100)
+    Set-Content -Path /host/etc/cni/net.d/10-flannel.conf ($cniJson | ConvertTo-Json -depth 100)
 
     cp -force /etc/kube-flannel/net-conf.json /host/etc/kube-flannel
     cp -force -recurse /cni/* /host/opt/cni/bin
@@ -32,7 +34,7 @@ data:
   cni-conf.json: |
     {
       "name": "flannel.4096",
-      "cniVersion": "0.3.1",
+      "cniVersion": "0.3.0",
       "type": "flannel",
       "capabilities": {
         "dns": true
