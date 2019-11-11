@@ -11,3 +11,5 @@ RUN mkdir C:\cni; \
   rm cni.tgz
 
 RUN curl.exe -Lo C:\windows\wins.exe https://github.com/rancher/wins/releases/download/v0.0.4/wins.exe
+
+RUN curl.exe -Lo C:\windows\yq.exe https://github.com/mikefarah/yq/releases/download/2.4.1/yq_windows_amd64.exe
