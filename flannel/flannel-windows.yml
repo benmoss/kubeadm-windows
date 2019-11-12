@@ -78,6 +78,7 @@ metadata:
   labels:
     tier: node
     app: flannel
+  namespace: kube-system
 spec:
   selector:
     matchLabels:
