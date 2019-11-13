@@ -1,68 +1,20 @@
 apiVersion: v1
 data:
-  config.conf: |-
-    apiVersion: kubeproxy.config.k8s.io/v1alpha1
-    bindAddress: 0.0.0.0
-    clientConnection:
-      acceptContentTypes: ""
-      burst: 10
-      contentType: application/vnd.kubernetes.protobuf
-      kubeconfig: /var/lib/kube-proxy/kubeconfig.conf
-      qps: 5
-    clusterCIDR: 10.244.0.0/16
-    configSyncPeriod: 15m0s
-    conntrack:
-      maxPerCore: 32768
-      min: 131072
-      tcpCloseWaitTimeout: 1h0m0s
-      tcpEstablishedTimeout: 24h0m0s
-    enableProfiling: false
-    featureGates:
-      WinOverlay: true
-    healthzBindAddress: 0.0.0.0:10256
-    hostnameOverride: ""
-    iptables:
-      masqueradeAll: false
-      masqueradeBit: 14
-      minSyncPeriod: 0s
-      syncPeriod: 30s
-    ipvs:
-      excludeCIDRs: null
-      minSyncPeriod: 0s
-      scheduler: ""
-      strictARP: false
-      syncPeriod: 30s
-    kind: KubeProxyConfiguration
-    metricsBindAddress: 127.0.0.1:10249
-    mode: "kernelspace"
-    nodePortAddresses: null
-    oomScoreAdj: -999
-    portRange: ""
-    resourceContainer: /kube-proxy
-    udpIdleTimeout: 250ms
-    winkernel:
-      enableDSR: false
-      networkName: ""
-      sourceVip: "10.244.1.25" # FIXME
-  kubeconfig.conf: |-
-    apiVersion: v1
-    kind: Config
-    clusters:
-    - cluster:
-        certificate-authority: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-        server: https://172.17.0.2:6443
-      name: default
-    contexts:
-    - context:
-        cluster: default
-        namespace: default
-        user: default
-      name: default
-    current-context: default
-    users:
-    - name: default
-      user:
-        tokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+  run-script.ps1: |-
+    $ErrorActionPreference = "Stop";
+    mkdir -force /host/var/lib/kube-proxy/var/run/secrets/kubernetes.io/serviceaccount
+    mkdir -force /host/kube-proxy
+
+    cp -force /kube-proxy/* /host/kube-proxy
+    cp -force /var/lib/kube-proxy/* /host/var/lib/kube-proxy
+    cp -force /var/run/secrets/kubernetes.io/serviceaccount/* /host/var/lib/kube-proxy/var/run/secrets/kubernetes.io/serviceaccount #FIXME?
+
+    $networkName = (Get-Content /host/etc/cni/net.d/* | ConvertFrom-Json).name
+    yq w -i /host/var/lib/kube-proxy/config.conf winkernel.sourceVip $env:POD_IP
+    yq w -i /host/var/lib/kube-proxy/config.conf featureGates.WinOverlay true
+    yq w -i /host/var/lib/kube-proxy/config.conf mode "kernelspace"
+    wins cli process run --path /kube-proxy/kube-proxy.exe --args "--v=6 --config=/var/lib/kube-proxy/config.conf --hostname-override=$env:NODE_NAME --feature-gates=WinOverlay=true" --envs "KUBE_NETWORK=$networkName"
+
 kind: ConfigMap
 apiVersion: v1
 metadata:
@@ -87,35 +39,23 @@ spec:
       labels:
         k8s-app: kube-proxy-windows
     spec:
-      priorityClassName: system-node-critical
-      initContainers:
-      - name: install-kube-proxy
-        image: gcr.io/cf-london-servces-k8s/windows-images/kube-proxy:latest
-        command:
-        - powershell
-        args:
-        - -command
-        - mkdir -force /host/var/lib/kube-proxy; cp -force /var/lib/kube-proxy/* /host/var/lib/kube-proxy; mkdir -force /host/var/lib/kube-proxy/var/run/secrets/kubernetes.io/serviceaccount; cp -force /var/run/secrets/kubernetes.io/serviceaccount/* /host/var/lib/kube-proxy/var/run/secrets/kubernetes.io/serviceaccount
-        volumeMounts:
-        - name: host
-          mountPath: /host
-        - mountPath: /var/lib/kube-proxy
-          name: kube-proxy
       serviceAccountName: kube-proxy
       containers:
       - command:
         - powershell
         args:
-        - -command
-        - mkdir -force /host/kube-proxy; cp -force /kube-proxy/* /host/kube-proxy; wins cli process run --path /kube-proxy/kube-proxy.exe --args "--v=6 --config=/var/lib/kube-proxy/config.conf --hostname-override=$(NODE_NAME) --feature-gates=WinOverlay=true" --envs "KUBE_NETWORK=$env:KUBE_NETWORK"
+        - -file
+        - /var/lib/kube-proxy-windows/run-script.ps1
         env:
         - name: NODE_NAME
           valueFrom:
             fieldRef:
               apiVersion: v1
               fieldPath: spec.nodeName
-        - name: KUBE_NETWORK
-          value: flannel.4096 #FIXME
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
         image: gcr.io/cf-london-servces-k8s/windows-images/kube-proxy:latest
         name: kube-proxy
         volumeMounts:
@@ -123,7 +63,10 @@ spec:
           mountPath: /host
         - name: wins
           mountPath: \\.\pipe\rancher_wins
-      hostNetwork: true
+        - mountPath: /var/lib/kube-proxy
+          name: kube-proxy
+        - mountPath: /var/lib/kube-proxy-windows
+          name: kube-proxy-windows
       nodeSelector:
         beta.kubernetes.io/os: windows
       tolerations:
@@ -134,6 +77,9 @@ spec:
       - configMap:
           defaultMode: 420
           name: kube-proxy-windows
+        name: kube-proxy-windows
+      - configMap:
+          name: kube-proxy
         name: kube-proxy
       - hostPath:
           path: /
