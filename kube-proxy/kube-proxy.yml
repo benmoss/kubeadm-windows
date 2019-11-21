@@ -11,9 +11,10 @@ data:
 
     $networkName = (Get-Content /host/etc/cni/net.d/* | ConvertFrom-Json).name
     yq w -i /host/var/lib/kube-proxy/config.conf winkernel.sourceVip $env:POD_IP
+    yq w -i /host/var/lib/kube-proxy/config.conf winkernel.networkName $networkName
     yq w -i /host/var/lib/kube-proxy/config.conf featureGates.WinOverlay true
     yq w -i /host/var/lib/kube-proxy/config.conf mode "kernelspace"
-    wins cli process run --path /kube-proxy/kube-proxy.exe --args "--v=6 --config=/var/lib/kube-proxy/config.conf --hostname-override=$env:NODE_NAME --feature-gates=WinOverlay=true" --envs "KUBE_NETWORK=$networkName"
+    wins cli process run --path /kube-proxy/kube-proxy.exe --args "--v=6 --config=/var/lib/kube-proxy/config.conf --hostname-override=$env:NODE_NAME --feature-gates=WinOverlay=true"
 
 kind: ConfigMap
 apiVersion: v1
