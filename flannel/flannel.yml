@@ -626,9 +626,8 @@ data:
     $podSubnet = yq r /etc/kubeadm-config/ClusterConfiguration networking.podSubnet
     $networkJson = wins cli net get | convertfrom-json
 
-    $cniJson.delegate.policies[0].Value.ExceptionList = $serviceSubnet, $podSubnet, $networkJson.SubnetCIDR
+    $cniJson.delegate.policies[0].Value.ExceptionList = $serviceSubnet, $podSubnet
     $cniJson.delegate.policies[1].Value.DestinationPrefix = $serviceSubnet
-    $cniJson.delegate.policies[2].Value.DestinationPrefix = $networkJson.AddressCIDR
     Set-Content -Path /host/etc/cni/net.d/10-flannel.conf ($cniJson | ConvertTo-Json -depth 100)
 
     cp -force /etc/kube-flannel/net-conf.json /host/etc/kube-flannel
@@ -646,8 +645,6 @@ data:
         "dns": true
       },
       "delegate": {
-        "hairpinMode": true,
-        "isDefaultGateway": true,
         "type": "win-overlay",
         "policies": [
           {
@@ -655,14 +652,6 @@ data:
             "Value": {
               "Type": "OutBoundNAT",
               "ExceptionList": []
-            }
-          },
-          {
-            "Name": "EndpointPolicy",
-            "Value": {
-              "Type": "ROUTE",
-              "DestinationPrefix": "",
-              "NeedEncap": true
             }
           },
           {
