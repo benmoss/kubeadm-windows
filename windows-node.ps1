@@ -12,7 +12,6 @@ curl.exe -Lo "C:\Program Files\windows-node\wins.exe" https://github.com/rancher
 # Install and configure Docker and create host network
 docker network create -d nat host
 
-stop-service rancher-wins
 wins.exe srv app run --register
 start-service rancher-wins
 
