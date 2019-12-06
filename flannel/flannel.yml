@@ -761,4 +761,3 @@ spec:
       - name: wins
         hostPath:
           path: \\.\pipe\rancher_wins
-          type: null
