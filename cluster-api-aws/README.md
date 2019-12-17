@@ -1,12 +1,14 @@
 ### Adding a Windows node to your AWS Cluster API cluster
 
-Follow the [quick start guide](https://cluster-api.sigs.k8s.io/user/quick-start.html) up to setting up a control plane machine, but before you apply Calico.
+Follow the [quick start guide](https://cluster-api.sigs.k8s.io/user/quick-start.html) up to setting up a control plane machine,
+skipping the step to apply Calico, since it does not have open-source Windows support.
+
 Apply the daemonset to run [kube-proxy](../kube-proxy/kube-proxy.yml) on Windows:
 ```
 kubectl apply -f https://raw.githubusercontent.com/benmoss/kubeadm-windows/master/kube-proxy/kube-proxy.yml
 ``` 
  
-Create the Flannel DaemonSets for Linux and Windows, modifying the pod CIDR to `192.168.0.0/16` to match the `cidrBlocks` in the Quick Start guide's Cluster definition:
+Create the Flannel DaemonSets for Linux and Windows, modifying the network CIDR to `192.168.0.0/16` to match the `cidrBlocks` from the Quick Start guide:
 ```
 curl -s -L https://raw.githubusercontent.com/benmoss/kubeadm-windows/master/flannel/flannel.yml | \
   | sed 's/10\.244/192\.168/' - \
@@ -14,7 +16,6 @@ curl -s -L https://raw.githubusercontent.com/benmoss/kubeadm-windows/master/flan
 ```
 
 Create an additional security group in the VPC to allow UDP traffic over port 4789 for Flannel:
-
 ```
 export VXLAN_SG_ID=$(aws ec2 create-security-group \
   --vpc-id $(kubectl get awsclusters capi-quickstart -o jsonpath='{.spec.networkSpec.vpc.id}') \
@@ -28,8 +29,7 @@ aws ec2 authorize-security-group-ingress \
   --group-id $VXLAN_SG_ID
 ```
 
-Next we'll add our the security group to existing instances:
-
+Add the security group to any existing instances:
 ```
 kubectl get awsmachines -o jsonpath="{range .items[*]}{.metadata.name}{'\n'}" \
   | xargs -I{} kubectl patch awsmachine {} --type merge -p '{"spec": {"additionalSecurityGroups": [{"id": "'$VXLAN_SG_ID'"}]}}'
