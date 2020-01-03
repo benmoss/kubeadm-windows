@@ -11,8 +11,8 @@ kubectl apply --kubeconfig=./capi-quickstart.kubeconfig -f https://raw.githubuse
 Create the Flannel DaemonSets for Linux and Windows, modifying the network CIDR to `192.168.0.0/16` to match the `cidrBlocks` from the Quick Start guide:
 ```
 curl -s -L https://raw.githubusercontent.com/benmoss/kubeadm-windows/master/flannel/flannel.yml | \
-  | sed 's/10\.244/192\.168/' - \
-  | kubectl --kubeconfig=./capi-quickstart.kubeconfig apply -f -
+  sed 's/10\.244/192\.168/' - | \
+  kubectl --kubeconfig=./capi-quickstart.kubeconfig apply -f -
 ```
 
 Create an additional security group in the VPC to allow UDP traffic over port 4789 for Flannel:
