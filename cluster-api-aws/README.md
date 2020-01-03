@@ -5,7 +5,7 @@ skipping the step to apply Calico, since it does not have open-source Windows su
 
 Apply the daemonset to run [kube-proxy](../kube-proxy/kube-proxy.yml) on Windows:
 ```
-kubectl apply -f https://raw.githubusercontent.com/benmoss/kubeadm-windows/master/kube-proxy/kube-proxy.yml
+kubectl apply --kubeconfig=./capi-quickstart.kubeconfig -f https://raw.githubusercontent.com/benmoss/kubeadm-windows/master/kube-proxy/kube-proxy.yml
 ``` 
  
 Create the Flannel DaemonSets for Linux and Windows, modifying the network CIDR to `192.168.0.0/16` to match the `cidrBlocks` from the Quick Start guide:
