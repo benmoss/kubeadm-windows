@@ -39,8 +39,8 @@ spec:
   template:
     spec:
       ami:
-        id: ami-06f2fb91e76f8750e
-      instanceType: t3.large
+        id: ami-08b0bf2de4f725dbd
+      instanceType: m5.large
       # This IAM profile is part of the pre-requisites.
       iamInstanceProfile: "nodes.cluster-api-provider-aws.sigs.k8s.io"
       # Change this value to a valid SSH Key Pair present in your AWS Account.
